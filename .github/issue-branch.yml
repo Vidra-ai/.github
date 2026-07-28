@@ -1,0 +1,10 @@
+mode: auto
+branchName: '${issue.number}-${issue.title[0,50],}'
+gitSafeReplacementChar: '-'
+branches:
+  - label: feature
+    prefix: feat/
+  - label: fix
+    prefix: fix/
+  - label: chore
+    prefix: chore/
