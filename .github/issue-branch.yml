@@ -6,5 +6,7 @@ branches:
     prefix: feat/
   - label: fix
     prefix: fix/
+  - label: bug
+    prefix: fix/
   - label: chore
     prefix: chore/

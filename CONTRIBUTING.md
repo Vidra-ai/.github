@@ -4,17 +4,18 @@ Metodología ágil ligera para todos los proyectos de la organización. Esto apl
 
 ## Tareas = Issues
 
-Cada tarea es un Issue, nunca una nota suelta o un mensaje de chat. Al crear uno, GitHub te ofrece 3 plantillas (vienen heredadas de este mismo repo `.github`, no hay que copiarlas a cada proyecto):
+Cada tarea es un Issue, nunca una nota suelta o un mensaje de chat. Al crear uno, GitHub te ofrece 4 plantillas (vienen heredadas de este mismo repo `.github`, no hay que copiarlas a cada proyecto):
 
 - **Feature**: nueva funcionalidad. Estructura: Qué incluye / No incluye / Hecho cuando.
-- **Fix**: corrección de un bug. Estructura: Qué falla / Causa / Hecho cuando.
+- **Bug**: reportar un fallo observado, antes de saber la causa (lo rellena quien se lo encuentra). Estructura: Qué falla / Cómo reproducirlo / Hecho cuando.
+- **Fix**: corrección de un bug ya diagnosticado (lo abre quien va a hacer el trabajo — a menudo tras triar un Bug). Estructura: Qué falla / Causa / Hecho cuando.
 - **Chore**: mantenimiento o infraestructura sin cambio de negocio.
 
-Cada plantilla aplica su label correspondiente (`feature`/`fix`/`chore`) — si un repo nuevo no las tiene creadas, hay que darlas de alta a mano una vez (Issues → Labels → New label), no se heredan de las plantillas de repo (`_plantilla-*`).
+Cada plantilla aplica su label correspondiente (`feature`/`bug`/`fix`/`chore`) — si un repo nuevo no las tiene creadas, hay que darlas de alta a mano una vez (Issues → Labels → New label), no se heredan de las plantillas de repo (`_plantilla-*`).
 
 ## Ramas
 
-Prefijo según el tipo de la tarea: `feat/`, `fix/`, `chore/`, seguido del número de issue y un resumen corto en minúsculas con guiones.
+Prefijo según el tipo de la tarea: `feat/`, `fix/`, `chore/`, seguido del número de issue y un resumen corto en minúsculas con guiones. Un Bug también genera rama con prefijo `fix/` (arreglarlo es un fix, aunque se haya reportado con la plantilla de Bug).
 
 **Se crean solas**: al asignarte un issue (no al crearlo, a propósito — evita ramas huérfanas de issues que se cierran sin trabajar), un workflow (`create-issue-branch`, configurado en `.github/issue-branch.yml` de este mismo repo `.github`) genera la rama automáticamente con el prefijo correcto según la label.
 
