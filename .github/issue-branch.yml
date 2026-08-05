@@ -1,7 +1,13 @@
 mode: auto
 branchName: '${issue.number}-${issue.title[0,50],}'
 gitSafeReplacementChar: '-'
+autoLinkIssue: true
+autoCloseIssue: true
 branches:
+  - label: hotfix
+    name: main
+    prefix: hotfix/
+    prTarget: main
   - label: feature
     prefix: feat/
   - label: fix
