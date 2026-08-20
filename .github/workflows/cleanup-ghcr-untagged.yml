@@ -1,0 +1,77 @@
+# Borra automáticamente las versiones de paquete SIN TAG de todos los
+# repos container de la org (manifests huérfanos que quedan atrás cada vez
+# que un tag como "latest" o "sha-*" se mueve a una imagen nueva). Nunca
+# toca versiones con tag -- esas siguen siendo responsabilidad de cada repo.
+#
+# Origen: incidente del 20/08/26, la org llegó al 100% del storage de
+# Actions/Packages por acumulación de estas versiones sin retención
+# automática (ver nota en Obsidian "05 - Infraestructura/Incidente - Storage
+# de Actions_Packages agotado en toda la org (2026-08-20).md"). Este
+# workflow reemplaza la limpieza manual hecha ese día.
+name: Limpieza semanal de versiones sin tag en GHCR
+
+on:
+  schedule:
+    - cron: "0 3 * * 1" # lunes 03:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Borrar versiones sin tag en todos los paquetes container de la org
+        env:
+          GH_TOKEN: ${{ secrets.ORG_PACKAGES_CLEANUP_PAT }}
+          ORG: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+
+          total_ok=0
+          total_fail=0
+          summary="$GITHUB_STEP_SUMMARY"
+          echo "## Limpieza de versiones sin tag en GHCR" >> "$summary"
+          echo "" >> "$summary"
+          echo "| Paquete | Borradas | Fallos |" >> "$summary"
+          echo "|---|---|---|" >> "$summary"
+
+          packages=$(gh api "orgs/$ORG/packages?package_type=container" --paginate --jq '.[].name')
+
+          for pkg in $packages; do
+            ids=$(gh api "orgs/$ORG/packages/container/$pkg/versions" --paginate \
+              --jq '.[] | select((.metadata.container.tags | length) == 0) | .id')
+
+            ok=0
+            fail=0
+            for id in $ids; do
+              if gh api -X DELETE "orgs/$ORG/packages/container/$pkg/versions/$id" >/dev/null 2>>errors.log; then
+                ok=$((ok+1))
+              else
+                fail=$((fail+1))
+                echo "$pkg $id" >> failed_ids.log
+              fi
+            done
+
+            if [ "$ok" -gt 0 ] || [ "$fail" -gt 0 ]; then
+              echo "| $pkg | $ok | $fail |" >> "$summary"
+            fi
+            total_ok=$((total_ok+ok))
+            total_fail=$((total_fail+fail))
+          done
+
+          echo "" >> "$summary"
+          echo "**Total: $total_ok borradas, $total_fail fallos.**" >> "$summary"
+
+          if [ "$total_fail" -gt 0 ]; then
+            echo "::warning::$total_fail borrados fallaron, revisa el job summary y errors.log"
+          fi
+
+      - name: Subir log de errores (si los hubo)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cleanup-errors
+          path: |
+            errors.log
+            failed_ids.log
+          if-no-files-found: ignore
+          retention-days: 7
