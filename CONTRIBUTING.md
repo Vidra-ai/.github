@@ -50,6 +50,6 @@ Vistas útiles ya montadas o recomendadas: una por proyecto activo (filtrada por
 
 ## Frontera con NocoDB
 
-NocoDB (`control.vidra-ia.com:8443`, base "Proyectos y Tareas") es la fuente de verdad del **portafolio**: qué proyectos existen y en qué fase están (`.0` Estudio → `.3` Mantenimiento). GitHub Issues/Projects es la capa de **ejecución**: las tareas concretas dentro de un proyecto que NocoDB ya dice que existe.
+NocoDB (base "Proyectos y Tareas") es la fuente de verdad del **portafolio**: qué proyectos existen y en qué fase están (`.0` Estudio → `.3` Mantenimiento). GitHub Issues/Projects es la capa de **ejecución**: las tareas concretas dentro de un proyecto que NocoDB ya dice que existe.
 
 No dupliques tareas en NocoDB. Si en algún momento alguien sin cuenta de GitHub necesita ver el estado de las tareas, se resuelve con una vista de solo lectura, no con un segundo registro a mantener sincronizado a mano.
