@@ -1,0 +1,50 @@
+name: Test Suite
+
+# Workflow reutilizable *local a este repo*, compartido por ci.yml y
+# main-pipeline.yml para no duplicar los mismos checks dos veces (mismo
+# patron que la plantilla "Hello World" de referencia en vidra-migracion,
+# ver docs/research/render-monorepo.md).
+#
+# Esto es solo el esqueleto -- cada TODO es un job que hay que rellenar con
+# los comandos reales de este proyecto. No hace falta que la lista de jobs
+# coincida exactamente con esta; borra los que no apliquen y anade los que
+# falten.
+
+on:
+  workflow_call:
+
+jobs:
+  lint-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: "TODO: lint del frontend"
+        run: 'echo "TODO: p.ej. npm run lint / pnpm run lint"'
+
+  unit-test-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: "TODO: tests del frontend"
+        run: 'echo "TODO: p.ej. npm run test"'
+
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: "TODO: build del frontend"
+        run: 'echo "TODO: p.ej. npm run build -- valida que el bundle de produccion compila"'
+
+  lint-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: "TODO: lint del backend"
+        run: 'echo "TODO: p.ej. uv run ruff check ."'
+
+  unit-test-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: "TODO: tests del backend"
+        run: 'echo "TODO: p.ej. uv run pytest"'

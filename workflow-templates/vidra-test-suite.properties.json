@@ -1,0 +1,5 @@
+{
+  "name": "Vidra — Suite de tests (esqueleto)",
+  "description": "Esqueleto de test-suite.yml para el pipeline estándar de Vidra — rellena cada job con los comandos reales de este proyecto (lint/test/build).",
+  "categories": ["Continuous integration"]
+}

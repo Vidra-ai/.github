@@ -1,0 +1,24 @@
+name: CI
+
+# Momento 1 del pipeline estandar de Vidra (ADR-0010, ver
+# vidra-migracion/docs/adr/0010-entornos-preview-staging-production.md):
+# commits en ramas de trabajo o PR -- exactamente el set de checks que
+# Preview/Staging esperan antes de desplegar.
+#
+# push-only (sin pull_request): un commit en una rama con PR abierto
+# dispara push y pull_request:synchronize para el mismo SHA, lo que
+# correria cada job aqui dos veces. push solo ya cubre cada commit de una
+# rama de trabajo. Los merges a main los cubre "Main Pipeline" por su
+# propio push:[main], no este workflow.
+#
+# Rellena test-suite.yml (plantilla "Vidra — Suite de tests") con los
+# comandos reales de este proyecto -- este archivo no cambia entre
+# proyectos.
+
+on:
+  push:
+    branches-ignore: [main]
+
+jobs:
+  test-suite:
+    uses: ./.github/workflows/test-suite.yml

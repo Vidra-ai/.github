@@ -1,0 +1,113 @@
+# Logica centralizada del "momento 3" del pipeline estandar de Vidra
+# (ADR-0010, ver vidra-migracion/docs/adr/0010-entornos-preview-staging-production.md):
+# verifica que se lanzo desde un tag semver, que ese commit ya paso en
+# verde el workflow de "Main Pipeline" (momento 2), y dispara los Deploy
+# Hooks de Render.
+#
+# Un solo secreto (`DEPLOY_HOOK_URLS`, una URL por linea) en vez de un
+# secreto por servicio -- sirve igual con un backend+frontend consolidados
+# (2 hooks) o con varios servicios de alta carga aparte (ADR-0011, N hooks),
+# sin tener que declarar un input distinto por cada uno.
+#
+# `github.repository`/`github.sha`/`github.ref_name` dentro de un workflow
+# reutilizable reflejan el repo y el commit que lo invoca, no este repo
+# `.github` -- por eso esta logica se puede centralizar sin perder de vista
+# de que unidad de despliegue se trata.
+#
+# Uso desde el repo de una unidad de despliegue (ver tambien la plantilla
+# "Vidra — Desplegar a produccion" en workflow-templates/):
+#
+#   name: Deploy Production
+#   on:
+#     workflow_dispatch:
+#   jobs:
+#     deploy:
+#       uses: Vidra-ai/.github/.github/workflows/deploy-production.yml@main
+#       secrets:
+#         DEPLOY_HOOK_URLS: ${{ secrets.DEPLOY_HOOK_URLS }}
+
+name: Vidra - Deploy a produccion (reutilizable)
+
+on:
+  workflow_call:
+    inputs:
+      main_pipeline_workflow:
+        description: "Nombre del archivo del workflow de 'Main Pipeline' a verificar"
+        type: string
+        default: main-pipeline.yml
+    secrets:
+      DEPLOY_HOOK_URLS:
+        description: "URLs de los Deploy Hooks de Render a disparar, una por linea"
+        required: true
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  verify-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verificar que se eligio un tag semver
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.ref_type }}" != "tag" ]; then
+            echo "::error::Este workflow solo se puede lanzar desde un tag (elige uno en 'Use workflow from'), no desde una rama. ref_type='${{ github.ref_type }}'."
+            exit 1
+          fi
+
+          TAG="${{ github.ref_name }}"
+          if ! [[ "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::El tag '$TAG' no es un semver valido (ej. 1.2.3 o 1.2.3-rc.1)."
+            exit 1
+          fi
+
+          echo "Desplegando tag $TAG (commit ${{ github.sha }})."
+
+  verify-main-pipeline-passed:
+    needs: verify-tag
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Verificar que el commit del tag paso Main Pipeline
+        run: |
+          set -euo pipefail
+          SHA="${{ github.sha }}"
+          WORKFLOW="${{ inputs.main_pipeline_workflow }}"
+
+          CONCLUSION=$(gh run list \
+            --repo "${{ github.repository }}" \
+            --workflow "$WORKFLOW" \
+            --json headSha,conclusion,status \
+            --jq "[.[] | select(.headSha == \"$SHA\")] | sort_by(.status) | reverse | .[0].conclusion // \"none\"")
+
+          if [ "$CONCLUSION" != "success" ]; then
+            echo "::error::No hay ninguna ejecucion en verde de '$WORKFLOW' para el commit $SHA (ultima conclusion: $CONCLUSION). No se despliega."
+            exit 1
+          fi
+
+          echo "Verificado: $SHA tiene una ejecucion en verde de '$WORKFLOW'. Continuando."
+
+  deploy:
+    needs: verify-main-pipeline-passed
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - name: Disparar los Deploy Hooks de produccion (fijados al commit del tag)
+        run: |
+          set -euo pipefail
+          any=0
+          while IFS= read -r url; do
+            [ -z "$url" ] && continue
+            any=1
+            echo "Disparando: ${url%%\?*}?ref=${{ github.sha }}"
+            curl -fsSL "${url}&ref=${{ github.sha }}"
+          done <<< "${{ secrets.DEPLOY_HOOK_URLS }}"
+
+          if [ "$any" -eq 0 ]; then
+            echo "::error::El secreto DEPLOY_HOOK_URLS esta vacio -- no hay ningun Deploy Hook que disparar."
+            exit 1
+          fi

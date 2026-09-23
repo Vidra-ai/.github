@@ -1,0 +1,5 @@
+{
+  "name": "Vidra — Desplegar a producción",
+  "description": "Momento 3 del pipeline estándar de Vidra (ADR-0010): promoción manual a Production desde un tag semver. Llama a la lógica centralizada de este repo — requiere el secreto DEPLOY_HOOK_URLS en el repo de destino.",
+  "categories": ["Deployment"]
+}

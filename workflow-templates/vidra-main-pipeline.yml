@@ -1,0 +1,25 @@
+name: Main Pipeline
+
+# Momento 2 del pipeline estandar de Vidra (ADR-0010, ver
+# vidra-migracion/docs/adr/0010-entornos-preview-staging-production.md):
+# codigo fusionado a main -- exactamente el set de checks que Staging
+# espera antes de redesplegarse sola (autoDeployTrigger: checksPass,
+# render.staging.yaml). Nunca toca Production -- la promocion es un
+# workflow aparte ("Vidra — Desplegar a produccion").
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  test-suite:
+    uses: ./.github/workflows/test-suite.yml
+
+  promotion-instructions:
+    needs: test-suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Imprimir los siguientes pasos
+        run: |
+          echo "test-suite paso en ${{ github.sha }}. Para promocionar a Production: git tag <semver> ${{ github.sha }} && git push origin <semver>,"
+          echo "y luego lanzar el workflow 'Deploy Production' (pestana Actions -> Run workflow) desde ese tag."

@@ -1,0 +1,5 @@
+{
+  "name": "Vidra — Checks en rama",
+  "description": "Momento 1 del pipeline estándar de Vidra (ADR-0010): corre la suite de tests en cada commit de una rama de trabajo, antes del PR.",
+  "categories": ["Continuous integration"]
+}

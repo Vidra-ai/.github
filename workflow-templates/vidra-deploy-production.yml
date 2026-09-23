@@ -1,0 +1,28 @@
+name: Deploy Production
+
+# Momento 3 del pipeline estandar de Vidra (ADR-0010, ver
+# vidra-migracion/docs/adr/0010-entornos-preview-staging-production.md):
+# promocion manual a Production. Solo se dispara a mano desde un tag
+# semver ("Use workflow from") -- sin trigger de push/schedule, nada
+# promociona solo.
+#
+# La logica real (verificar el tag, comprobar que Main Pipeline paso en
+# verde, disparar los Deploy Hooks) vive centralizada en
+# Vidra-ai/.github -- este archivo es solo el punto de entrada, no hace
+# falta tocarlo salvo para cambiar el nombre del workflow de Main Pipeline
+# si no se llama "main-pipeline.yml".
+#
+# Antes de usarlo: crea el secreto DEPLOY_HOOK_URLS en este repo
+# (Settings -> Secrets and variables -> Actions) con las URLs de los
+# Deploy Hooks de Render a disparar, una por linea (uno si backend y
+# frontend comparten Blueprint, mas si hay servicios de alta carga aparte,
+# ADR-0011).
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    uses: Vidra-ai/.github/.github/workflows/deploy-production.yml@main
+    secrets:
+      DEPLOY_HOOK_URLS: ${{ secrets.DEPLOY_HOOK_URLS }}

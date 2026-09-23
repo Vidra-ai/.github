@@ -1,0 +1,5 @@
+{
+  "name": "Vidra — Checks en main",
+  "description": "Momento 2 del pipeline estándar de Vidra (ADR-0010): corre la suite de tests al fusionar a main, antes de que Staging se redespliegue sola.",
+  "categories": ["Continuous integration"]
+}
