@@ -12,8 +12,10 @@ on:
     branches: [main]
 
 jobs:
+  # secrets: inherit -- ver la misma nota en vidra-ci.yml.
   test-suite:
     uses: ./.github/workflows/test-suite.yml
+    secrets: inherit
 
   promotion-instructions:
     needs: test-suite

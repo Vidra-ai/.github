@@ -20,5 +20,10 @@ on:
     branches-ignore: [main]
 
 jobs:
+  # secrets: inherit -- un workflow_call no hereda los secretos del que lo
+  # llama por defecto (hallazgo real de sesion en administracion-general,
+  # 2026-09-28: una dependencia privada necesitaba un secreto de git en
+  # test-suite.yml y llegaba vacio sin esto).
   test-suite:
     uses: ./.github/workflows/test-suite.yml
+    secrets: inherit
