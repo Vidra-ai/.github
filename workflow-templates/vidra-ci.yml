@@ -11,6 +11,9 @@ name: CI
 # rama de trabajo. Los merges a main los cubre "Main Pipeline" por su
 # propio push:[main], no este workflow.
 #
+# workflow_dispatch: para lanzarlo sobre una rama subida con el GITHUB_TOKEN,
+# que no dispara `push` (lo usa "Actualizar un paquete", ADR-0028).
+#
 # Rellena test-suite.yml (plantilla "Vidra — Suite de tests") con los
 # comandos reales de este proyecto -- este archivo no cambia entre
 # proyectos.
@@ -18,6 +21,7 @@ name: CI
 on:
   push:
     branches-ignore: [main]
+  workflow_dispatch:
 
 jobs:
   # secrets: inherit -- un workflow_call no hereda los secretos del que lo

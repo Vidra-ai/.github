@@ -1,0 +1,5 @@
+{
+  "name": "Vidra — Actualizar un paquete",
+  "description": "Cambia la versión de un paquete de Vidra en unidad.toml desde la pestaña Actions: ejecuta unidad sync, sube la rama, lanza el CI y deja el enlace para abrir el PR (ADR-0028).",
+  "categories": ["Automation"]
+}

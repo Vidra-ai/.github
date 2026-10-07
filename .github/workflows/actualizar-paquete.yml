@@ -1,0 +1,199 @@
+# Cambiar la versión de un paquete de Vidra en una unidad de despliegue desde
+# la pestaña Actions, sin clonar el repo (ADR-0028, ver
+# vidra-migracion/docs/adr/0028-departamentos-y-super-admins-en-el-panel.md).
+#
+# Hace lo mismo que se hace a mano: cambia `[paquetes]` de `unidad.toml`,
+# ejecuta `python -m vidra_hub_estandar.unidad sync` (pyproject, package.json,
+# SHA de pnpm, unidad.json y lockfiles) y sube el resultado a una rama
+# `chore/<paquete>-<version>`. `unidad.toml` sigue siendo la única fuente y el
+# cambio entra por PR como cualquier otro: la versión no se toca en caliente.
+#
+# - Versión vacía = el último tag del paquete.
+# - El paquete tiene que estar ya en `[paquetes]`: añadir uno nuevo también
+#   pide código (montar el servicio), así que eso se hace a mano.
+# - El org no deja que Actions abra PR (`can_approve_pull_request_reviews:
+#   false`), así que el resumen del run deja el enlace para abrirlo con un
+#   clic. Un push hecho con el GITHUB_TOKEN no dispara el CI, así que se lanza
+#   a mano (`workflow_dispatch` de `ci_workflow`) sobre la rama.
+#
+# Claves: las mismas deploy keys de solo lectura que usa el CI de las unidades
+# (secretos de organización, en base64). Si una unidad no usa un paquete, su
+# clave puede faltar.
+#
+# Uso desde el repo de una unidad (plantilla "Vidra — Actualizar un paquete"
+# en workflow-templates/):
+#
+#   on:
+#     workflow_dispatch:
+#       inputs:
+#         paquete: { type: choice, options: [vidra-hub-estandar, ...] }
+#         version: { type: string, required: false }
+#   jobs:
+#     actualizar:
+#       uses: Vidra-ai/.github/.github/workflows/actualizar-paquete.yml@main
+#       with:
+#         paquete: ${{ inputs.paquete }}
+#         version: ${{ inputs.version }}
+#       secrets: inherit
+
+name: Vidra - Actualizar un paquete (reutilizable)
+
+on:
+  workflow_call:
+    inputs:
+      paquete:
+        description: "Repo del paquete en Vidra-ai (clave de [paquetes] en unidad.toml)"
+        type: string
+        required: true
+      version:
+        description: "Tag sin 'v' (X.Y.Z). Vacío = el último"
+        type: string
+        default: ""
+      ci_workflow:
+        description: "Workflow de CI que se lanza sobre la rama (necesita workflow_dispatch)"
+        type: string
+        default: ci.yml
+
+permissions:
+  actions: write
+  contents: write
+
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PAQUETE: ${{ inputs.paquete }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Claves de los paquetes privados
+        env:
+          HUB_ESTANDAR_DEPLOY_KEY_B64: ${{ secrets.HUB_ESTANDAR_DEPLOY_KEY_B64 }}
+          CHATBOT_ESTANDAR_DEPLOY_KEY_B64: ${{ secrets.CHATBOT_ESTANDAR_DEPLOY_KEY_B64 }}
+          INGESTA_ESTANDAR_DEPLOY_KEY_B64: ${{ secrets.INGESTA_ESTANDAR_DEPLOY_KEY_B64 }}
+        run: |
+          set -euo pipefail
+          mkdir -p -m 700 ~/.ssh
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+          # Una deploy key vale para un solo repo: cada una en su Host y solo
+          # la URL de su repo apunta a él (mismo esquema que el CI y el Dockerfile).
+          clave() {  # $1 alias, $2 repo, $3 clave en base64
+            [ -n "$3" ] || return 0
+            echo "$3" | base64 -d > ~/.ssh/id_$1
+            chmod 600 ~/.ssh/id_$1
+            printf 'Host github-%s\n  HostName github.com\n  HostKeyAlias github.com\n  IdentityFile ~/.ssh/id_%s\n  IdentitiesOnly yes\n' "$1" "$1" >> ~/.ssh/config
+            git config --global url."git@github-$1:Vidra-ai/$2".insteadOf "https://github.com/Vidra-ai/$2"
+          }
+          clave hub vidra-hub-estandar "$HUB_ESTANDAR_DEPLOY_KEY_B64"
+          clave chatbot vidra-chatbot-estandar "$CHATBOT_ESTANDAR_DEPLOY_KEY_B64"
+          clave ingesta vidra-ingesta-estandar "$INGESTA_ESTANDAR_DEPLOY_KEY_B64"
+
+      - name: Elegir la versión
+        id: version
+        env:
+          PEDIDA: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          ACTUAL=$(python3 -c 'import os, tomllib; print(tomllib.load(open("unidad.toml", "rb")).get("paquetes", {}).get(os.environ["PAQUETE"], ""))')
+          if [ -z "$ACTUAL" ]; then
+            echo "::error::$PAQUETE no está en [paquetes] de unidad.toml. Añadir un paquete nuevo se hace a mano (también hay que montarlo en el código)."
+            exit 1
+          fi
+          TAGS=$(git ls-remote --tags --refs "https://github.com/Vidra-ai/$PAQUETE" | sed 's#.*refs/tags/##' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V)
+          VERSION="${PEDIDA#v}"
+          if [ -z "$VERSION" ]; then
+            VERSION=$(echo "$TAGS" | tail -n 1)
+          elif ! echo "$TAGS" | grep -qx "$VERSION"; then
+            echo "::error::$PAQUETE no tiene el tag $VERSION. Los últimos: $(echo "$TAGS" | tail -n 5 | tr '\n' ' ')"
+            exit 1
+          fi
+          if [ "$VERSION" = "$ACTUAL" ]; then
+            echo "::notice::$PAQUETE ya está en $VERSION: no hay nada que cambiar."
+            echo "nada=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "$PAQUETE: $ACTUAL -> $VERSION"
+          {
+            echo "actual=$ACTUAL"
+            echo "version=$VERSION"
+            echo "rama=chore/$PAQUETE-$VERSION"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Cambiar unidad.toml
+        if: steps.version.outputs.nada != 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          # Solo la línea del paquete dentro de [paquetes]: el resto del fichero
+          # (comentarios incluidos) queda como estaba.
+          python3 - <<'PY'
+          import os, re, tomllib
+          paquete, version = os.environ["PAQUETE"], os.environ["VERSION"]
+          texto = open("unidad.toml", encoding="utf-8").read()
+          seccion = re.search(r"(?ms)^\[paquetes\]\s*$.*?(?=^\[|\Z)", texto)
+          linea = re.compile(rf'(?m)^(\s*{re.escape(paquete)}\s*=\s*")[^"]*(")')
+          nuevo_bloque, n = linea.subn(rf"\g<1>{version}\g<2>", seccion.group(0))
+          assert n == 1, f"{paquete} no aparece una sola vez en [paquetes]"
+          texto = texto[: seccion.start()] + nuevo_bloque + texto[seccion.end() :]
+          assert tomllib.loads(texto)["paquetes"][paquete] == version
+          open("unidad.toml", "w", encoding="utf-8").write(texto)
+          PY
+
+      - uses: actions/setup-python@v5
+        if: steps.version.outputs.nada != 'true'
+        with:
+          python-version: "3.12"
+      - run: pip install uv
+        if: steps.version.outputs.nada != 'true'
+      # pnpm/action-setup está bloqueada por la política del org: corepack.
+      - run: corepack enable
+        if: steps.version.outputs.nada != 'true'
+      - uses: actions/setup-node@v4
+        if: steps.version.outputs.nada != 'true'
+        with:
+          node-version: "22"
+
+      # `sync` con el hub de la versión que queda en unidad.toml: si lo que se
+      # sube es el hub, ya escribe con las reglas de la versión nueva.
+      - name: sync
+        if: steps.version.outputs.nada != 'true'
+        run: |
+          set -euo pipefail
+          HUB=$(python3 -c 'import tomllib; print(tomllib.load(open("unidad.toml", "rb"))["paquetes"]["vidra-hub-estandar"])')
+          uv run --no-project --with "vidra-hub-estandar @ git+https://github.com/Vidra-ai/vidra-hub-estandar.git@${HUB}#subdirectory=backend" python -m vidra_hub_estandar.unidad sync
+          git status --short
+
+      - name: Subir la rama y lanzar el CI
+        if: steps.version.outputs.nada != 'true'
+        env:
+          ACTUAL: ${{ steps.version.outputs.actual }}
+          VERSION: ${{ steps.version.outputs.version }}
+          RAMA: ${{ steps.version.outputs.rama }}
+          CI_WORKFLOW: ${{ inputs.ci_workflow }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$RAMA"
+          git add -A
+          git commit -m "chore: $PAQUETE $VERSION" -m "Desde Actions (actualizar-paquete), lanzado por @$ACTOR. Antes: $ACTUAL."
+          git push --force origin "$RAMA"  # rama del bot: relanzar la rehace
+          if gh workflow run "$CI_WORKFLOW" --ref "$RAMA"; then
+            CI="CI lanzado sobre la rama ($CI_WORKFLOW)."
+          else
+            CI="No se pudo lanzar $CI_WORKFLOW: ¿tiene \`workflow_dispatch\`? Lánzalo a mano antes de fusionar."
+          fi
+          TITULO=$(python3 -c 'import os, urllib.parse as u; print(u.quote("chore: " + os.environ["PAQUETE"] + " " + os.environ["VERSION"]))')
+          URL="${{ github.server_url }}/${{ github.repository }}/compare/${{ github.event.repository.default_branch }}...$RAMA?expand=1&title=$TITULO"
+          {
+            echo "### $PAQUETE: $ACTUAL → $VERSION"
+            echo
+            echo "Rama \`$RAMA\` subida. $CI"
+            echo
+            echo "**[Abrir el PR]($URL)** y fusionarlo cuando el CI esté en verde: Staging se despliega sola al pasar Main Pipeline."
+          } >> "$GITHUB_STEP_SUMMARY"

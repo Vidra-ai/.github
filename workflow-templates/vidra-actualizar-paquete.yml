@@ -1,0 +1,36 @@
+name: Actualizar un paquete
+
+# Cambiar la versión de un paquete de Vidra desde la pestaña Actions ("Run
+# workflow"), sin clonar el repo (ADR-0028, ver
+# vidra-migracion/docs/adr/0028-departamentos-y-super-admins-en-el-panel.md).
+# Cambia [paquetes] de unidad.toml, ejecuta `unidad sync`, sube la rama
+# chore/<paquete>-<version>, lanza el CI sobre ella y deja en el resumen el
+# enlace para abrir el PR. Versión vacía = el último tag.
+#
+# La lógica vive centralizada en Vidra-ai/.github: este archivo es solo el
+# formulario. La lista de paquetes son los de Vidra; elegir uno que no esté en
+# [paquetes] de unidad.toml falla con el motivo. Necesita que ci.yml acepte
+# `workflow_dispatch` (plantilla "Vidra — Checks en rama").
+
+on:
+  workflow_dispatch:
+    inputs:
+      paquete:
+        description: "Paquete"
+        type: choice
+        options:
+          - vidra-hub-estandar
+          - vidra-chatbot-estandar
+          - vidra-ingesta-estandar
+      version:
+        description: "Versión (X.Y.Z, sin 'v'). Vacío = la última"
+        type: string
+        required: false
+
+jobs:
+  actualizar:
+    uses: Vidra-ai/.github/.github/workflows/actualizar-paquete.yml@main
+    with:
+      paquete: ${{ inputs.paquete }}
+      version: ${{ inputs.version }}
+    secrets: inherit

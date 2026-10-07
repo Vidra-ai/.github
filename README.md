@@ -12,7 +12,9 @@ Este repo tiene la propiedad `metodologia = viejo` (decisión de sesión, 2026-0
   - **Vidra — Checks en main** (momento 2)
   - **Vidra — Suite de tests (esqueleto)** — el TODO a rellenar con los comandos reales de cada proyecto
   - **Vidra — Desplegar a producción** (momento 3) — un archivo casi vacío que solo llama al workflow reutilizable de abajo
+  - **Vidra — Actualizar un paquete** — formulario para cambiar la versión de un paquete de Vidra en `unidad.toml` (ADR-0028); llama a `actualizar-paquete.yml`
 - **`.github/workflows/deploy-production.yml`** — el workflow reutilizable de verdad (`workflow_call`) para el momento 3: verificar el tag, comprobar que Main Pipeline pasó, disparar los Deploy Hooks de Render. Centralizado aquí porque no cambia nada de un proyecto a otro (a diferencia de los momentos 1 y 2, que sí necesitan referenciar el `test-suite.yml` propio de cada repo — GitHub no permite que un workflow reutilizable alojado aquí referencie un archivo del repo que lo llama, por eso esos dos siguen siendo plantilla-para-copiar, no una referencia en vivo).
+- **`.github/workflows/actualizar-paquete.yml`** — reutilizable: cambia `[paquetes]` de `unidad.toml`, ejecuta `unidad sync` con las deploy keys de los paquetes, sube `chore/<paquete>-<version>`, lanza el CI sobre la rama (por eso `ci.yml` acepta `workflow_dispatch`) y deja el enlace para abrir el PR (el org no deja que Actions los abra).
 - **`.github/workflows/cleanup-ghcr-untagged.yml`** — limpieza semanal de versiones de paquete sin tag en GHCR (incidente del 20/08/26, ver el propio archivo).
 
 ## Usar el pipeline estándar en un repo nuevo
