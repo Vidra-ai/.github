@@ -30,6 +30,7 @@
 #         version: { type: string, required: false }
 #   jobs:
 #     actualizar:
+#       permissions: { actions: write, contents: write }  # el token del org es de lectura
 #       uses: Vidra-ai/.github/.github/workflows/actualizar-paquete.yml@main
 #       with:
 #         paquete: ${{ inputs.paquete }}

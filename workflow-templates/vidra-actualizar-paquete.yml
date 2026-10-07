@@ -29,6 +29,11 @@ on:
 
 jobs:
   actualizar:
+    # El token del org es de solo lectura por defecto y un workflow llamado no
+    # puede tener mas permisos que el que lo llama: subir la rama y lanzar el CI.
+    permissions:
+      actions: write
+      contents: write
     uses: Vidra-ai/.github/.github/workflows/actualizar-paquete.yml@main
     with:
       paquete: ${{ inputs.paquete }}
