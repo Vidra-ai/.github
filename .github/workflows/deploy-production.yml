@@ -22,6 +22,9 @@
 #     workflow_dispatch:
 #   jobs:
 #     deploy:
+#       permissions:      # el token del org es de solo lectura y
+#         actions: read   # un workflow llamado no puede ganar permisos
+#         contents: read
 #       uses: Vidra-ai/.github/.github/workflows/deploy-production.yml@main
 #       secrets:
 #         DEPLOY_HOOK_URLS: ${{ secrets.DEPLOY_HOOK_URLS }}
