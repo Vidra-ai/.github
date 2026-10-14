@@ -23,6 +23,11 @@ on:
 
 jobs:
   deploy:
+    # El token del org es de solo lectura por defecto y un workflow llamado no
+    # puede tener mas permisos que el que lo llama: comprobar Main Pipeline.
+    permissions:
+      actions: read
+      contents: read
     uses: Vidra-ai/.github/.github/workflows/deploy-production.yml@main
     secrets:
       DEPLOY_HOOK_URLS: ${{ secrets.DEPLOY_HOOK_URLS }}
